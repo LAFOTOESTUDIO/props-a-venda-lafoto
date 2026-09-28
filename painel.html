@@ -31,7 +31,7 @@ h2{font-family:Fraunces,Georgia,serif; font-weight:600}
 #painel .p-login{background:var(--surface); border:1px solid var(--edge); padding:22px; max-width:420px}
 #painel .p-login p{margin:0 0 14px; color:var(--ink-2); font-size:15px}
 #painel .p-login input{width:100%; margin-bottom:10px}
-#painel .p-msg{min-height:1.4em; margin:6px 0 0; font-size:14px; font-weight:700}
+#painel .p-msg{white-space:pre-line; min-height:1.4em; margin:6px 0 0; font-size:14px; font-weight:700}
 #painel .p-msg.erro{color:var(--accent)}
 #painel .p-login .p-msg.erro:not(:empty){background:#FBEAEA; border:1px solid var(--accent); padding:10px 12px; font-weight:700; line-height:1.45} #painel .p-msg.ok{color:var(--zap-esc)}
 #painel .p-busca{width:100%; margin-bottom:12px}
@@ -80,6 +80,27 @@ h2{font-family:Fraunces,Georgia,serif; font-weight:600}
   var $ = function(id){ return document.getElementById(id); };
   var SEM_CONEXAO = "Não consegui falar com o servidor. Confira a internet e tente de novo. " +
     "Se continuar, o antivírus ou o bloqueador de anúncios pode estar barrando o endereço do painel.";
+  var ultimoErro = null;
+  // quando não conecta, testa o que funciona neste computador e mostra um código para mandar à Amanda
+  function diagnostico(alvo){
+    var linhas = [], ua = navigator.userAgent;
+    var nav = /Edg\//.test(ua) ? "Edge" : /OPR\//.test(ua) ? "Opera" : /Firefox\//.test(ua) ? "Firefox" :
+              /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "outro";
+    linhas.push("navegador: " + nav + (/Mobile/.test(ua) ? " (celular)" : "") + " · online: " + navigator.onLine);
+    if (ultimoErro) linhas.push("erro: " + ultimoErro.name + " – " + ultimoErro.message);
+    function teste(nome, url){
+      var t0 = Date.now();
+      return fetch(url, {cache: "no-store"}).then(function(r){ return nome + ": ok " + r.status + " (" + (Date.now() - t0) + " ms)"; })
+        .catch(function(e){ return nome + ": FALHOU (" + e.message + ", " + (Date.now() - t0) + " ms)"; });
+    }
+    Promise.all([
+      teste("servidor", API + "/tem-senha"),
+      teste("github", "https://lafotoestudio.github.io/props-a-venda-lafoto/painel.html"),
+      teste("google", "https://www.google.com/favicon.ico").then(function(x){ return x.replace("FALHOU", "sem acesso (normal)"); })
+    ]).then(function(res){
+      alvo.textContent = SEM_CONEXAO + "\n\nDiagnóstico — mande um print disto para a Amanda:\n" + linhas.concat(res).join("\n");
+    });
+  }
   function real(n){ return "R$ " + Number(n).toLocaleString("pt-BR", {minimumFractionDigits: 0, maximumFractionDigits: 2}); }
   function esc(t){ var d = document.createElement("div"); d.textContent = t == null ? "" : t; return d.innerHTML; }
 
@@ -99,7 +120,7 @@ h2{font-family:Fraunces,Georgia,serif; font-weight:600}
     corpo = corpo || {}; corpo.senha = senha;
     // text/plain evita a consulta prévia (preflight) que alguns antivírus e redes bloqueiam
     return fetch(API + rota, {method: "POST", headers: {"Content-Type": "text/plain"}, body: JSON.stringify(corpo)})
-      .catch(function(){ throw new Error(SEM_CONEXAO); })
+      .catch(function(e){ ultimoErro = e; throw new Error(SEM_CONEXAO); })
       .then(function(r){ return r.json().then(function(d){ if (!r.ok) throw new Error(d.erro || "Erro"); return d; }); });
   }
   function msg(t, tipo){ var m = $("pMsg"); m.textContent = t; m.className = "p-msg " + (tipo || ""); }
@@ -114,7 +135,7 @@ h2{font-family:Fraunces,Georgia,serif; font-weight:600}
         : "Digite a senha do painel.";
       $("pEntrar").textContent = criando ? "Criar senha e entrar" : "Entrar";
       $("pSenha").focus();
-    }).catch(function(){ $("pLoginMsg").className = "p-msg erro"; $("pLoginMsg").textContent = SEM_CONEXAO; });
+    }).catch(function(e){ ultimoErro = e; $("pLoginMsg").className = "p-msg erro"; diagnostico($("pLoginMsg")); });
   }
   function sair(){
     senha = ""; try { localStorage.removeItem("painelProps"); } catch(e) {}
@@ -136,6 +157,7 @@ h2{font-family:Fraunces,Georgia,serif; font-weight:600}
         ? "Senha errada. Confira se digitou igual, com as mesmas letras maiúsculas e minúsculas, sem espaço no começo ou no fim. " +
           "Depois de 8 tentativas erradas o painel trava por 15 minutos."
         : e.message;
+      if (e.message === SEM_CONEXAO) diagnostico(lm);
       $("pSenha").value = ""; $("pSenha").focus();
     }).then(function(){ $("pEntrar").disabled = false; });
   }
