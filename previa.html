@@ -1132,7 +1132,25 @@ Item marcado como <b>Vendido</b> já saiu.<br>
 <script>
 (function(){
   // mostra o que já foi vendido e quantas unidades restam, direto do banco
-  var API = "https://br-patient-feather-b7ckwx8j-props.compute.c-13.us-east-1.aws.neon.tech";
+  // Neon Data API: pega um passe anônimo e chama as funções do banco (estado, entrar, venda...)
+  var AUTH = "https://ep-purple-mouse-b7m0zp74.neonauth.c-13.us-east-1.aws.neon.tech/neondb/auth";
+  var REST = "https://ep-purple-mouse-b7m0zp74.apirest.c-13.us-east-1.aws.neon.tech/neondb/rest/v1";
+  var passe = null;
+  function pegaPasse(){
+    if (!passe) passe = fetch(AUTH + "/token/anonymous").then(function(r){ return r.json(); })
+      .then(function(d){ if (!d.token) throw new Error("sem passe"); return d.token; })
+      .catch(function(e){ passe = null; throw e; });
+    return passe;
+  }
+  function rpc(nome, args, deNovo){
+    return pegaPasse().then(function(t){
+      return fetch(REST + "/rpc/" + nome, {method: "POST",
+        headers: {"Authorization": "Bearer " + t, "Content-Type": "application/json"}, body: JSON.stringify(args || {})});
+    }).then(function(r){
+      if (r.status === 401 && !deNovo) { passe = null; return rpc(nome, args, true); }
+      return r.json();
+    });
+  }
   function aplica(itens){
     itens.forEach(function(i){
       var art = document.getElementById(i.id); if (!art) return;
@@ -1147,8 +1165,7 @@ Item marcado como <b>Vendido</b> já saiu.<br>
       if (n <= 0) { var b = art.querySelector(".btn.on"); if (b) b.click(); }
     });
   }
-  fetch(API + "/estado").then(function(r){ return r.json(); })
-    .then(function(d){ if (d.itens) aplica(d.itens); }).catch(function(){});
+  rpc("estado").then(function(d){ if (d.itens) aplica(d.itens); }).catch(function(){});
 })();
 </script>
 </body>

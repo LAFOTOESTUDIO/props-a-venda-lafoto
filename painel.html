@@ -76,7 +76,25 @@ h2{font-family:Fraunces,Georgia,serif; font-weight:600}
 
 <script>
 (function(){
-  var API = "https://br-patient-feather-b7ckwx8j-props.compute.c-13.us-east-1.aws.neon.tech";
+  // Neon Data API: pega um passe anônimo e chama as funções do banco (estado, entrar, venda...)
+  var AUTH = "https://ep-purple-mouse-b7m0zp74.neonauth.c-13.us-east-1.aws.neon.tech/neondb/auth";
+  var REST = "https://ep-purple-mouse-b7m0zp74.apirest.c-13.us-east-1.aws.neon.tech/neondb/rest/v1";
+  var passe = null;
+  function pegaPasse(){
+    if (!passe) passe = fetch(AUTH + "/token/anonymous").then(function(r){ return r.json(); })
+      .then(function(d){ if (!d.token) throw new Error("sem passe"); return d.token; })
+      .catch(function(e){ passe = null; throw e; });
+    return passe;
+  }
+  function rpc(nome, args, deNovo){
+    return pegaPasse().then(function(t){
+      return fetch(REST + "/rpc/" + nome, {method: "POST",
+        headers: {"Authorization": "Bearer " + t, "Content-Type": "application/json"}, body: JSON.stringify(args || {})});
+    }).then(function(r){
+      if (r.status === 401 && !deNovo) { passe = null; return rpc(nome, args, true); }
+      return r.json();
+    });
+  }
   var $ = function(id){ return document.getElementById(id); };
   var SEM_CONEXAO = "Não consegui falar com o servidor. Confira a internet e tente de novo. " +
     "Se continuar, o antivírus ou o bloqueador de anúncios pode estar barrando o endereço do painel.";
@@ -94,7 +112,7 @@ h2{font-family:Fraunces,Georgia,serif; font-weight:600}
         .catch(function(e){ return nome + ": FALHOU (" + e.message + ", " + (Date.now() - t0) + " ms)"; });
     }
     Promise.all([
-      teste("servidor", API + "/tem-senha"),
+      teste("servidor", AUTH + "/token/anonymous"),
       teste("github", "https://lafotoestudio.github.io/props-a-venda-lafoto/painel.html"),
       teste("google", "https://www.google.com/favicon.ico").then(function(x){ return x.replace("FALHOU", "sem acesso (normal)"); })
     ]).then(function(res){
@@ -118,16 +136,20 @@ h2{font-family:Fraunces,Georgia,serif; font-weight:600}
 
   function chama(rota, corpo){
     corpo = corpo || {}; corpo.senha = senha;
-    // text/plain evita a consulta prévia (preflight) que alguns antivírus e redes bloqueiam
-    return fetch(API + rota, {method: "POST", headers: {"Content-Type": "text/plain"}, body: JSON.stringify(corpo)})
+    var nome = rota.replace("/", "");
+    if (corpo.quantidade != null) corpo.quantidade = parseInt(corpo.quantidade, 10);
+    if (corpo.valor != null) corpo.valor = corpo.valor === "" ? null : Number(corpo.valor);
+    if (corpo.estoque != null) corpo.estoque = parseInt(corpo.estoque, 10);
+    if (corpo.venda_id != null) corpo.venda_id = parseInt(corpo.venda_id, 10);
+    return rpc(nome, corpo)
       .catch(function(e){ ultimoErro = e; throw new Error(SEM_CONEXAO); })
-      .then(function(r){ return r.json().then(function(d){ if (!r.ok) throw new Error(d.erro || "Erro"); return d; }); });
+      .then(function(d){ if (d.erro || d.message) throw new Error(d.erro || d.message); return d; });
   }
   function msg(t, tipo){ var m = $("pMsg"); m.textContent = t; m.className = "p-msg " + (tipo || ""); }
 
   function abre(){
     if (senha) return entrar();
-    fetch(API + "/tem-senha").then(function(r){ return r.json(); }).then(function(d){
+    rpc("tem_senha").then(function(d){
       criando = !d.tem;
       $("pSenha2").hidden = !criando;
       $("pLoginTxt").textContent = criando
