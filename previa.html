@@ -182,6 +182,8 @@ h2{font-family:Fraunces,Georgia,serif; font-size:24px; font-weight:600;
 .resta{display:inline-block; margin:0 0 10px; font-size:12px; font-weight:700; letter-spacing:.06em;
   text-transform:uppercase; color:var(--zap-esc); background:#E6F4EC; padding:3px 9px; align-self:flex-start}
 .item.vendido .resta{display:none}
+.combo{margin:0 0 10px; font-size:13.5px; color:var(--ink-2); background:#FBF0DA; border-left:3px solid #8A5A12; padding:6px 10px}
+.combo b{color:var(--accent)}
 
 .aviso{background:#FBF0DA; border:1px solid #8A5A12; color:#6b4610;
   padding:14px 18px; margin:22px 0 0; font-size:14.5px}
@@ -698,16 +700,30 @@ footer{margin-top:56px; padding-top:20px; border-top:1px solid var(--edge);
           <button class="btn" data-nome="Cortina de cristais acrílicos" data-preco="69"><span>Eu quero esse</span></button>
         </div>
       </article>
-      <article class="item" id="gotas" data-fotos="fotos/galeria/gotas-1.jpg">
-        <div class="foto"><img src="fotos/gotas-lote.jpg" alt="Lote de gotas de cristal acrílico facetadas" loading="lazy"
+      <article class="item" id="esferas" data-fotos="fotos/gotas-lote.jpg">
+        <div class="foto"><img src="fotos/esferas.jpg" alt="6 esferas de cristal facetadas" loading="lazy"
              onload="this.closest('.foto').classList.remove('vazio')"
              onerror="this.closest('.foto').classList.add('vazio')"><span class="sem">foto em breve<br>pergunte pelo WhatsApp</span><span class="selo">Vendido</span><span class="selo-c">Quantidade a confirmar</span></div>
         <div class="txt">
-          <h3>Lote de gotas de cristal acrílico facetadas</h3>
-          <p class="preco">R$ 59 <span>o lote</span></p>
-          <p class="desc">Pingentes em acrílico facetado transparente: <b>7 gotas grandes, 3 gotas menores, 6 esferas facetadas e 1 diamante</b>. Penduram com fio de nylon. Ficam ótimos em fundo com luz recortada.</p>
+          <h3>6 esferas de cristal facetadas</h3>
+          <p class="preco">R$ 99 <span>as 6</span></p>
+          <p class="combo">Levando esferas + gotas juntas: <b>R$ 149</b></p>
+          <p class="desc">Esferas transparentes todas lapidadas em facetas. Penduradas contra a luz, espalham pontinhos de arco-íris pelo cenário.</p>
           <p class="estado"><b>Estado:</b> Transparentes, sem trincas visíveis.</p>
-          <button class="btn" data-nome="Lote de gotas de cristal acrílico facetadas" data-preco="59"><span>Eu quero esse</span></button>
+          <button class="btn" data-nome="6 esferas de cristal facetadas" data-preco="99"><span>Eu quero esse</span></button>
+        </div>
+      </article>
+      <article class="item" id="gotas" data-fotos="fotos/galeria/gotas-1.jpg fotos/gotas.jpg fotos/gotas-lote.jpg">
+        <div class="foto"><img src="fotos/gotas-grandes.jpg" alt="Gotas de cristal facetadas — 7 grandes, 3 menores e 1 diamante" loading="lazy"
+             onload="this.closest('.foto').classList.remove('vazio')"
+             onerror="this.closest('.foto').classList.add('vazio')"><span class="sem">foto em breve<br>pergunte pelo WhatsApp</span><span class="selo">Vendido</span><span class="selo-c">Quantidade a confirmar</span></div>
+        <div class="txt">
+          <h3>Gotas de cristal facetadas — 7 grandes, 3 menores e 1 diamante</h3>
+          <p class="preco">R$ 79 <span>o lote</span></p>
+          <p class="combo">Levando esferas + gotas juntas: <b>R$ 149</b></p>
+          <p class="desc">Pingentes transparentes lapidados: <b>7 gotas grandes, 3 gotas menores e 1 diamante</b>. Penduram com fio de nylon e ficam ótimos em fundo com luz recortada.</p>
+          <p class="estado"><b>Estado:</b> Transparentes, sem trincas visíveis.</p>
+          <button class="btn" data-nome="Gotas de cristal facetadas — 7 grandes, 3 menores e 1 diamante" data-preco="79"><span>Eu quero esse</span></button>
         </div>
       </article>
       <article class="item" id="rosa" data-fotos="fotos/galeria/rosa-1.jpg">
