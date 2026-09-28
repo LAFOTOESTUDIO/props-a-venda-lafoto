@@ -32,7 +32,8 @@ h2{font-family:Fraunces,Georgia,serif; font-weight:600}
 #painel .p-login p{margin:0 0 14px; color:var(--ink-2); font-size:15px}
 #painel .p-login input{width:100%; margin-bottom:10px}
 #painel .p-msg{min-height:1.4em; margin:6px 0 0; font-size:14px; font-weight:700}
-#painel .p-msg.erro{color:var(--accent)} #painel .p-msg.ok{color:var(--zap-esc)}
+#painel .p-msg.erro{color:var(--accent)}
+#painel .p-login .p-msg.erro:not(:empty){background:#FBEAEA; border:1px solid var(--accent); padding:10px 12px; font-weight:700; line-height:1.45} #painel .p-msg.ok{color:var(--zap-esc)}
 #painel .p-busca{width:100%; margin-bottom:12px}
 #painel .p-item{background:var(--surface); border:1px solid var(--edge); padding:12px 14px; margin-bottom:8px}
 #painel .p-linha{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
@@ -77,6 +78,8 @@ h2{font-family:Fraunces,Georgia,serif; font-weight:600}
 (function(){
   var API = "https://br-patient-feather-b7ckwx8j-props.compute.c-13.us-east-1.aws.neon.tech";
   var $ = function(id){ return document.getElementById(id); };
+  var SEM_CONEXAO = "Não consegui falar com o servidor. Confira a internet e tente de novo. " +
+    "Se continuar, o antivírus ou o bloqueador de anúncios pode estar barrando o endereço do painel.";
   function real(n){ return "R$ " + Number(n).toLocaleString("pt-BR", {minimumFractionDigits: 0, maximumFractionDigits: 2}); }
   function esc(t){ var d = document.createElement("div"); d.textContent = t == null ? "" : t; return d.innerHTML; }
 
@@ -90,11 +93,13 @@ h2{font-family:Fraunces,Georgia,serif; font-weight:600}
       if (dados) mostra(dados);
     }).catch(function(){});
   });
-  try { senha = sessionStorage.getItem("painelProps") || ""; } catch(e) {}
+  try { senha = localStorage.getItem("painelProps") || ""; } catch(e) {}
 
   function chama(rota, corpo){
     corpo = corpo || {}; corpo.senha = senha;
-    return fetch(API + rota, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(corpo)})
+    // text/plain evita a consulta prévia (preflight) que alguns antivírus e redes bloqueiam
+    return fetch(API + rota, {method: "POST", headers: {"Content-Type": "text/plain"}, body: JSON.stringify(corpo)})
+      .catch(function(){ throw new Error(SEM_CONEXAO); })
       .then(function(r){ return r.json().then(function(d){ if (!r.ok) throw new Error(d.erro || "Erro"); return d; }); });
   }
   function msg(t, tipo){ var m = $("pMsg"); m.textContent = t; m.className = "p-msg " + (tipo || ""); }
@@ -109,10 +114,10 @@ h2{font-family:Fraunces,Georgia,serif; font-weight:600}
         : "Digite a senha do painel.";
       $("pEntrar").textContent = criando ? "Criar senha e entrar" : "Entrar";
       $("pSenha").focus();
-    }).catch(function(){ $("pLoginMsg").textContent = "Sem conexão com o servidor."; });
+    }).catch(function(){ $("pLoginMsg").className = "p-msg erro"; $("pLoginMsg").textContent = SEM_CONEXAO; });
   }
   function sair(){
-    senha = ""; try { sessionStorage.removeItem("painelProps"); } catch(e) {}
+    senha = ""; try { localStorage.removeItem("painelProps"); } catch(e) {}
     $("pSenha").value = ""; $("pConteudo").hidden = true; $("pLogin").hidden = false; $("pSair").hidden = true; abre();
   }
 
@@ -122,11 +127,16 @@ h2{font-family:Fraunces,Georgia,serif; font-weight:600}
     if (criando && senha !== $("pSenha2").value) { lm.textContent = "As duas senhas não são iguais."; senha = ""; return; }
     $("pEntrar").disabled = true;
     chama(criando ? "/criar-senha" : "/entrar").then(function(d){
-      try { sessionStorage.setItem("painelProps", senha); } catch(e) {}
+      try { localStorage.setItem("painelProps", senha); } catch(e) {}
       criando = false; $("pLogin").hidden = true; $("pConteudo").hidden = false; mostra(d);
     }).catch(function(e){
-      senha = ""; try { sessionStorage.removeItem("painelProps"); } catch(x) {}
-      $("pLogin").hidden = false; $("pConteudo").hidden = true; lm.textContent = e.message;
+      senha = ""; try { localStorage.removeItem("painelProps"); } catch(x) {}
+      $("pLogin").hidden = false; $("pConteudo").hidden = true;
+      lm.textContent = e.message === "Senha errada."
+        ? "Senha errada. Confira se digitou igual, com as mesmas letras maiúsculas e minúsculas, sem espaço no começo ou no fim. " +
+          "Depois de 8 tentativas erradas o painel trava por 15 minutos."
+        : e.message;
+      $("pSenha").value = ""; $("pSenha").focus();
     }).then(function(){ $("pEntrar").disabled = false; });
   }
 
