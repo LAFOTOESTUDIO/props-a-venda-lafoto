@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Painel de vendas — Props L.A. Foto</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Karla:wght@400;700&display=swap">
+<style>
+:root{
+  --ground:#F7F8FA; --surface:#FFFFFF; --edge:#DDE3EC;
+  --ink:#141A22; --ink-2:#4A5666; --ink-3:#77839A;
+  --accent:#9E2B2B; --zap:#25A366; --zap-esc:#1c8250;
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--ground); color:var(--ink); font:16px/1.5 Karla,"Helvetica Neue",Arial,sans-serif}
+h2{font-family:Fraunces,Georgia,serif; font-weight:600}
+/* painel de vendas */
+#painel{background:var(--ground); min-height:100vh;
+  padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(24px + env(safe-area-inset-bottom,0px))}
+#painel[hidden]{display:none}
+#painel .p-caixa{max-width:760px; margin:0 auto}
+#painel .p-topo{display:flex; align-items:center; gap:12px; border-bottom:2px solid var(--ink); padding-bottom:12px; margin-bottom:16px}
+#painel h2{margin:0; border:0; padding:0; font-size:22px; margin-right:auto}
+#painel button,#painel input{font:inherit}
+#painel .p-btn{background:var(--ink); color:#fff; border:none; padding:10px 16px; font-weight:700; cursor:pointer}
+#painel .p-btn.verde{background:var(--zap)}
+#painel .p-btn.claro{background:var(--surface); color:var(--ink); border:1px solid var(--edge)}
+#painel .p-btn:disabled{opacity:.5; cursor:default}
+#painel input{border:1px solid var(--edge); background:var(--surface); padding:10px 12px; min-width:0; color:var(--ink)}
+#painel .p-login{background:var(--surface); border:1px solid var(--edge); padding:22px; max-width:420px}
+#painel .p-login p{margin:0 0 14px; color:var(--ink-2); font-size:15px}
+#painel .p-login input{width:100%; margin-bottom:10px}
+#painel .p-msg{min-height:1.4em; margin:6px 0 0; font-size:14px; font-weight:700}
+#painel .p-msg.erro{color:var(--accent)} #painel .p-msg.ok{color:var(--zap-esc)}
+#painel .p-busca{width:100%; margin-bottom:12px}
+#painel .p-item{background:var(--surface); border:1px solid var(--edge); padding:12px 14px; margin-bottom:8px}
+#painel .p-linha{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+#painel .p-nome{flex:1; min-width:180px; font-weight:700; font-size:15px}
+#painel .p-resta{font-size:13px; color:var(--ink-3)}
+#painel .p-resta.zero{color:var(--accent); font-weight:700}
+#painel .p-form{display:none; gap:8px; flex-wrap:wrap; margin-top:10px; align-items:flex-end}
+#painel .p-item.aberto .p-form{display:flex}
+#painel .p-form label{display:flex; flex-direction:column; font-size:12px; color:var(--ink-3); font-weight:700; gap:3px}
+#painel .p-form .qtd{width:80px} #painel .p-form .val{width:120px} #painel .p-form .obs{width:200px}
+#painel h3{font-family:Fraunces,Georgia,serif; font-size:19px; margin:26px 0 10px}
+#painel .p-venda{display:flex; gap:10px; align-items:center; flex-wrap:wrap; border-bottom:1px solid var(--edge); padding:9px 0; font-size:14.5px}
+#painel .p-venda .quando{color:var(--ink-3); font-size:13px; width:92px}
+#painel .p-venda .oq{flex:1; min-width:160px}
+#painel .p-venda .rs{font-weight:700}
+#painel .p-total{background:var(--surface); border:1px solid var(--edge); padding:12px 14px; font-size:15px}
+</style>
+</head>
+<body>
+<div id="painel">
+  <div class="p-caixa">
+    <div class="p-topo"><h2>Painel de vendas</h2><button class="p-btn claro" id="pSair" hidden>Sair</button></div>
+    <div id="pLogin" class="p-login">
+      <p id="pLoginTxt">Digite a senha do painel.</p>
+      <input type="password" id="pSenha" placeholder="Senha" autocomplete="current-password">
+      <input type="password" id="pSenha2" placeholder="Repita a senha" autocomplete="new-password" hidden>
+      <button class="p-btn" id="pEntrar">Entrar</button>
+      <p class="p-msg" id="pLoginMsg"></p>
+    </div>
+    <div id="pConteudo" hidden>
+      <p class="p-msg" id="pMsg"></p>
+      <input type="search" class="p-busca" id="pBusca" placeholder="Buscar peça…">
+      <div id="pItens"></div>
+      <h3>Vendas registradas</h3>
+      <div class="p-total" id="pTotal"></div>
+      <div id="pVendas"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var API = "https://br-patient-feather-b7ckwx8j-props.compute.c-13.us-east-1.aws.neon.tech";
+  var $ = function(id){ return document.getElementById(id); };
+  function real(n){ return "R$ " + Number(n).toLocaleString("pt-BR", {minimumFractionDigits: 0, maximumFractionDigits: 2}); }
+  function esc(t){ var d = document.createElement("div"); d.textContent = t == null ? "" : t; return d.innerHTML; }
+
+  // ── painel
+  var senha = "", dados = null, criando = false, precos = {};
+  // preço anunciado de cada peça, lido do catálogo, para sugerir no campo de valor
+  ["index.html", "previa.html"].forEach(function(arq){
+    fetch(arq).then(function(r){ return r.ok ? r.text() : ""; }).then(function(t){
+      new DOMParser().parseFromString(t, "text/html").querySelectorAll("article.item").forEach(function(a){
+        var b = a.querySelector(".btn"); if (b && (arq === "previa.html" || !precos[a.id])) precos[a.id] = b.dataset.preco; });
+      if (dados) mostra(dados);
+    }).catch(function(){});
+  });
+  try { senha = sessionStorage.getItem("painelProps") || ""; } catch(e) {}
+
+  function chama(rota, corpo){
+    corpo = corpo || {}; corpo.senha = senha;
+    return fetch(API + rota, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(corpo)})
+      .then(function(r){ return r.json().then(function(d){ if (!r.ok) throw new Error(d.erro || "Erro"); return d; }); });
+  }
+  function msg(t, tipo){ var m = $("pMsg"); m.textContent = t; m.className = "p-msg " + (tipo || ""); }
+
+  function abre(){
+    if (senha) return entrar();
+    fetch(API + "/tem-senha").then(function(r){ return r.json(); }).then(function(d){
+      criando = !d.tem;
+      $("pSenha2").hidden = !criando;
+      $("pLoginTxt").textContent = criando
+        ? "Primeiro acesso: crie a senha do painel (pelo menos 8 caracteres). Depois é só passar para quem vai usar."
+        : "Digite a senha do painel.";
+      $("pEntrar").textContent = criando ? "Criar senha e entrar" : "Entrar";
+      $("pSenha").focus();
+    }).catch(function(){ $("pLoginMsg").textContent = "Sem conexão com o servidor."; });
+  }
+  function sair(){
+    senha = ""; try { sessionStorage.removeItem("painelProps"); } catch(e) {}
+    $("pSenha").value = ""; $("pConteudo").hidden = true; $("pLogin").hidden = false; $("pSair").hidden = true; abre();
+  }
+
+  function entrar(){
+    var lm = $("pLoginMsg"); lm.className = "p-msg erro"; lm.textContent = "";
+    if (!senha) senha = $("pSenha").value;
+    if (criando && senha !== $("pSenha2").value) { lm.textContent = "As duas senhas não são iguais."; senha = ""; return; }
+    $("pEntrar").disabled = true;
+    chama(criando ? "/criar-senha" : "/entrar").then(function(d){
+      try { sessionStorage.setItem("painelProps", senha); } catch(e) {}
+      criando = false; $("pLogin").hidden = true; $("pConteudo").hidden = false; mostra(d);
+    }).catch(function(e){
+      senha = ""; try { sessionStorage.removeItem("painelProps"); } catch(x) {}
+      $("pLogin").hidden = false; $("pConteudo").hidden = true; lm.textContent = e.message;
+    }).then(function(){ $("pEntrar").disabled = false; });
+  }
+
+  function precoDoSite(id){ return precos[id] || ""; }
+
+  function mostra(d){
+    dados = d; $("pSair").hidden = false;
+    var filtro = $("pBusca").value.trim().toLowerCase();
+    $("pItens").innerHTML = d.itens.filter(function(i){ return !filtro || i.nome.toLowerCase().indexOf(filtro) > -1; })
+      .map(function(i){
+        var n = Number(i.restam);
+        return '<div class="p-item" data-id="' + esc(i.id) + '">' +
+          '<div class="p-linha"><span class="p-nome">' + esc(i.nome) + '</span>' +
+          '<span class="p-resta' + (n ? '' : ' zero') + '">' + (n ? 'restam ' + n : 'vendido') + '</span>' +
+          '<button class="p-btn verde abrir"' + (n ? '' : ' disabled') + '>Registrar venda</button></div>' +
+          '<div class="p-form">' +
+          '<label>Quantidade<input class="qtd" type="number" min="1" max="' + n + '" value="1"></label>' +
+          '<label>Vendido por (R$)<input class="val" type="number" min="0" step="0.01" placeholder="' + esc(precoDoSite(i.id)) + '"></label>' +
+          '<label>Obs. (comprador…)<input class="obs" type="text" maxlength="300"></label>' +
+          '<button class="p-btn salvar">Salvar venda</button>' +
+          '<label>Corrigir estoque<input class="est" type="number" min="0" value="' + n + '"></label>' +
+          '<button class="p-btn claro ajustar">Salvar estoque</button></div></div>';
+      }).join("") || '<p>Nenhuma peça com esse nome.</p>';
+
+    var tot = d.vendas.reduce(function(a, v){ return a + Number(v.valor || 0); }, 0);
+    $("pTotal").innerHTML = d.vendas.length ? '<b>' + d.vendas.length + ' venda(s)</b> · total ' + real(tot) : 'Nenhuma venda registrada ainda.';
+    $("pVendas").innerHTML = d.vendas.map(function(v){
+      var q = new Date(v.criado_em).toLocaleString("pt-BR", {day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"});
+      return '<div class="p-venda"><span class="quando">' + q + '</span><span class="oq">' + v.quantidade + '× ' + esc(v.nome) +
+        (v.obs ? ' <span class="p-resta">— ' + esc(v.obs) + '</span>' : '') + '</span>' +
+        '<span class="rs">' + (v.valor != null ? real(v.valor) : '—') + '</span>' +
+        '<button class="p-btn claro desfazer" data-v="' + v.id + '">Desfazer</button></div>';
+    }).join("");
+  }
+
+  $("pItens").addEventListener("click", function(e){
+    var box = e.target.closest(".p-item"); if (!box) return;
+    var id = box.dataset.id;
+    if (e.target.classList.contains("abrir")) { box.classList.toggle("aberto"); return; }
+    if (e.target.classList.contains("salvar")) {
+      e.target.disabled = true;
+      chama("/venda", {item_id: id, quantidade: box.querySelector(".qtd").value,
+                       valor: box.querySelector(".val").value, obs: box.querySelector(".obs").value})
+        .then(function(d){ mostra(d); msg("Venda registrada.", "ok"); })
+        .catch(function(err){ msg(err.message, "erro"); e.target.disabled = false; });
+    }
+    if (e.target.classList.contains("ajustar")) {
+      e.target.disabled = true;
+      chama("/estoque", {item_id: id, estoque: box.querySelector(".est").value})
+        .then(function(d){ mostra(d); msg("Estoque corrigido.", "ok"); })
+        .catch(function(err){ msg(err.message, "erro"); e.target.disabled = false; });
+    }
+  });
+  $("pVendas").addEventListener("click", function(e){
+    var b = e.target.closest(".desfazer"); if (!b) return;
+    if (!b.dataset.certeza) { b.dataset.certeza = "1"; b.textContent = "Confirmar desfazer?"; return; }
+    b.disabled = true;
+    chama("/desfazer", {venda_id: b.dataset.v}).then(function(d){ mostra(d); msg("Venda desfeita, a peça voltou ao estoque.", "ok"); })
+      .catch(function(err){ msg(err.message, "erro"); });
+  });
+  $("pBusca").addEventListener("input", function(){ if (dados) mostra(dados); });
+  $("pEntrar").addEventListener("click", entrar);
+  $("pSenha").addEventListener("keydown", function(e){ if (e.key === "Enter" && !criando) entrar(); });
+  $("pSenha2").addEventListener("keydown", function(e){ if (e.key === "Enter") entrar(); });
+  $("pSair").addEventListener("click", sair);
+
+  abre();
+})();
+</script>
+</body>
+</html>
