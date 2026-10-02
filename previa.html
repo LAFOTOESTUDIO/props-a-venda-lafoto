@@ -131,33 +131,6 @@ h2{font-family:Fraunces,Georgia,serif; font-size:24px; font-weight:600;
   cursor:pointer; text-decoration:underline; font-family:inherit}
 #barra .limpa:hover{opacity:1}
 
-/* faixa de presets no meio da página */
-.faixa{display:block; text-decoration:none; margin:52px 0 0; background:var(--accent); color:#fff}
-.faixa-in{padding:26px clamp(18px,4vw,34px); display:flex; align-items:center; gap:22px; flex-wrap:wrap}
-.faixa-tag{margin:0 0 6px; font-size:11px; letter-spacing:.16em; text-transform:uppercase; opacity:.8; font-weight:700}
-.faixa-tit{margin:0 0 6px; font-family:Fraunces,Georgia,serif; font-size:clamp(21px,3vw,27px); font-weight:600; line-height:1.15}
-.faixa-sub{margin:0; font-size:15.5px; opacity:.94; max-width:62ch}
-.faixa-sub b{color:#fff}
-.faixa-btn{margin-left:auto; background:#fff; color:var(--accent); font-weight:700; font-size:15px;
-  padding:13px 26px; white-space:nowrap}
-.faixa:hover .faixa-btn{background:var(--ground)}
-
-/* popup dos presets: barra de largura total */
-#presets{position:fixed; left:0; right:0; bottom:0; z-index:39; background:var(--accent); color:#fff;
-  transition:bottom .22s ease; box-shadow:0 -6px 24px rgba(0,0,0,.2)}
-#presets.subiu{bottom:76px}
-#presets .p-in{max-width:1120px; margin:0 auto; padding:15px clamp(16px,4vw,32px);
-  display:flex; align-items:center; gap:16px; flex-wrap:wrap}
-#presets a{color:#fff; text-decoration:none; display:flex; align-items:center; gap:14px;
-  flex-wrap:wrap; flex:1; min-width:0}
-#presets b{font-family:Fraunces,Georgia,serif; font-size:19px; font-weight:600; white-space:nowrap}
-#presets .p-txt{font-size:14.5px; opacity:.93}
-#presets .p-btn{background:#fff; color:var(--accent); font-weight:700; font-size:14px;
-  padding:9px 20px; white-space:nowrap}
-#presets .x{background:none; border:none; color:#fff; opacity:.75; font-size:24px; line-height:1;
-  cursor:pointer; padding:0 4px; font-family:inherit}
-#presets .x:hover{opacity:1}
-@media (max-width:640px){ #presets b{white-space:normal} #presets .p-txt{display:none} }
 
 /* carrossel de fotos */
 .foto img{cursor:zoom-in}
@@ -197,7 +170,6 @@ footer{margin-top:56px; padding-top:20px; border-top:1px solid var(--edge);
 <nav class="topo">
   <div class="in">
     <a class="logo" href="https://www.lafotoestudio.com.br/">L.A. Foto Estúdio</a>
-    <a href="https://www.lafotoestudio.com.br/presetsla">Presets LA</a>
     <a id="navZap" href="#">Contato</a>
   </div>
 </nav>
@@ -542,16 +514,6 @@ footer{margin-top:56px; padding-top:20px; border-top:1px solid var(--edge);
       </article>
 </div>
 
-<a class="faixa" href="https://www.lafotoestudio.com.br/presetsla">
-  <div class="faixa-in">
-    <div>
-      <p class="faixa-tag">Também da L.A. Foto</p>
-      <p class="faixa-tit">Presets LA — filtros para Lightroom</p>
-      <p class="faixa-sub">Download na hora, guia em PDF e suporte. A partir de <b>R$ 39</b> a unidade, ou o kit com os 5 por <b>R$ 156</b>.</p>
-    </div>
-    <span class="faixa-btn">Ver os presets</span>
-  </div>
-</a>
 
 <h2>Props e mobiliário de estúdio</h2>
 <div class="grade">
@@ -987,16 +949,6 @@ Item marcado como <b>Vendido</b> já saiu.<br>
 
 </div>
 
-<div id="presets">
-  <div class="p-in">
-    <a href="https://www.lafotoestudio.com.br/presetsla">
-      <b>Também temos presets ✨</b>
-      <span class="p-txt">Filtros para Lightroom, a partir de R$ 39. Kit com 5 por R$ 156.</span>
-      <span class="p-btn">Ver os presets</span>
-    </a>
-    <button class="x" id="fechapresets" aria-label="Fechar">&times;</button>
-  </div>
-</div>
 
 <div id="barra">
   <div class="in">
@@ -1013,7 +965,6 @@ Item marcado como <b>Vendido</b> já saiu.<br>
   if (!ok) document.getElementById("semnumero").hidden = false;
 
   var barra = document.getElementById("barra"),
-      pill  = document.getElementById("presets"),
       esc   = [];
 
   function real(n){ return "R$ " + n.toLocaleString("pt-BR"); }
@@ -1021,7 +972,6 @@ Item marcado como <b>Vendido</b> já saiu.<br>
   function pinta(){
     var n = esc.length;
     barra.classList.toggle("on", n > 0);
-    if (pill) pill.classList.toggle("subiu", n > 0);
     if (!n) return;
     var tot = esc.reduce(function(a,i){ return a + i.preco; }, 0);
     document.getElementById("bTitulo").textContent =
@@ -1069,9 +1019,6 @@ Item marcado como <b>Vendido</b> já saiu.<br>
   if (nav && ok) nav.href = "https://wa.me/" + num +
     "?text=" + encodeURIComponent("Oi! Vim pela página dos props do site.");
 
-  document.getElementById("fechapresets").addEventListener("click", function(){
-    pill.remove(); pill = null;
-  });
 })();
 </script>
 <div id="galeria" hidden role="dialog" aria-modal="true" aria-label="Fotos do item">
