@@ -106,12 +106,30 @@ select{font:inherit; border:1px solid var(--edge); background:var(--surface); pa
 .form .botoes .p-btn{flex:1; padding:14px}
 
 /* estoque */
-details.estoque{margin-top:28px}
-details.estoque summary{font-family:Fraunces,Georgia,serif; font-size:19px; cursor:pointer; padding:6px 0}
-.est{display:flex; gap:8px; align-items:center; background:var(--surface); border:1px solid var(--edge); padding:8px 12px; margin-bottom:6px; font-size:14.5px}
-.est .n{flex:1}
-.est .zero{color:var(--accent); font-weight:700}
-.est input{width:70px}
+/* abas */
+.abas{display:grid; grid-template-columns:1fr 1fr; margin-bottom:16px; border:2px solid var(--ink)}
+.abas button{background:var(--surface); border:none; padding:12px 8px; font-weight:700; font-size:15.5px; cursor:pointer; color:var(--ink)}
+.abas button.on{background:var(--ink); color:#fff}
+.abas b{background:var(--aviso); color:#fff; font-size:12.5px; padding:1px 7px; margin-left:4px; border-radius:10px}
+.abas b:empty{display:none}
+
+/* peças (jeito rápido) */
+#pBuscaPeca{margin-bottom:12px}
+.it{background:var(--surface); border:1px solid var(--edge); padding:12px 14px; margin-bottom:8px}
+.it-lin{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.it-nome{flex:1; min-width:170px; font-weight:700; font-size:15px}
+.it-resta{font-size:13px; color:var(--ink-3)}
+.it-resta.zero{color:var(--accent); font-weight:700}
+.it-form{display:none; margin-top:12px; border-top:1px solid var(--edge); padding-top:12px}
+.it.aberto .it-form{display:block}
+.it-form .g{display:grid; grid-template-columns:70px 110px 1fr 1fr; gap:8px; align-items:end}
+.it-form label{display:flex; flex-direction:column; font-size:12px; color:var(--ink-3); font-weight:700; gap:3px}
+.it-form .junta{margin-top:8px}
+.it-form .acoes{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; align-items:center}
+.it-form .acoes .salvar{flex:1; padding:13px; font-size:16px}
+.it-form .corrige{display:flex; gap:8px; align-items:end; margin-top:14px; padding-top:10px; border-top:1px dashed var(--edge); font-size:13px; color:var(--ink-3)}
+.it-form .corrige input{width:70px}
+@media (max-width:560px){ .it-form .g{grid-template-columns:70px 1fr} .it-form .g .l2{grid-column:1 / -1} }
 @media (max-width:480px){
   .campos{grid-template-columns:1fr}
   .escolhidas .lin{grid-template-columns:1fr 56px 84px auto}
@@ -131,9 +149,20 @@ details.estoque summary{font-family:Fraunces,Georgia,serif; font-size:19px; curs
     </div>
 
     <div id="pConteudo" hidden>
+      <div class="abas" id="pAbas">
+        <button data-aba="pecas" class="on">Peças</button>
+        <button data-aba="pedidos">Pedidos e entregas <b id="pAEntregar"></b></button>
+      </div>
+
+      <!-- peças: o jeito rápido — procura, toca em Vendido, salva -->
+      <div id="pPecas">
+        <input type="search" id="pBuscaPeca" placeholder="Buscar peça…">
+        <div id="pItens"></div>
+      </div>
+
       <!-- lista de pedidos -->
-      <div id="pLista">
-        <button class="p-btn verde grande" id="pNovo">+ Nova venda</button>
+      <div id="pLista" hidden>
+        <button class="p-btn verde grande" id="pNovo">+ Venda com várias peças</button>
         <div class="p-filtros" id="pFiltros"></div>
         <div class="p-buscas">
           <select id="pPessoa" aria-label="Filtrar por pessoa"><option value="">Todas as pessoas</option></select>
@@ -145,11 +174,6 @@ details.estoque summary{font-family:Fraunces,Georgia,serif; font-size:19px; curs
           <button class="p-btn claro" id="pBaixar" title="Baixa um arquivo que abre no Excel ou Google Planilhas">Baixar planilha</button>
         </div>
         <div id="pPedidos"></div>
-        <details class="estoque">
-          <summary>Estoque das peças</summary>
-          <p style="font-size:14px;color:var(--ink-3);margin:4px 0 10px">Só para corrigir a quantidade sem registrar venda (peça quebrou, achou mais uma…).</p>
-          <div id="pEstoque"></div>
-        </details>
       </div>
 
       <!-- nova venda / editar pedido -->
@@ -369,13 +393,104 @@ details.estoque summary{font-family:Fraunces,Georgia,serif; font-size:19px; curs
     $("pPedidos").innerHTML = visiveis.map(cartao).join("") ||
       '<p style="color:var(--ink-3)">' + (busca || escolhida ? 'Nada encontrado com esse filtro.' : filtro === "entregar" ? 'Nenhum pedido esperando entrega. 🎉' : 'Nenhum pedido aqui.') + '</p>';
 
-    $("pEstoque").innerHTML = d.itens.map(function(i){
-      var n = Number(i.restam);
-      return '<div class="est" data-id="' + esc(i.id) + '"><span class="n">' + esc(i.nome) +
-        (n ? '' : ' <span class="zero">· vendido</span>') + '</span>' +
-        '<input type="number" min="0" inputmode="numeric" value="' + n + '"><button class="p-btn claro ajustar">Salvar</button></div>';
-    }).join("");
+    var falta = peds.filter(function(p){ return !p.entregue; }).length;
+    $("pAEntregar").textContent = falta || "";
+    mostraPecas();
   }
+
+  // ── aba Peças: igual ao painel antigo — procura a peça, toca em Vendido, salva
+  var aberta = null;
+  function mostraPecas(){
+    var t = sem($("pBuscaPeca").value.trim());
+    var abertos = (dados.pedidos || []).filter(function(p){ return !p.entregue; });
+    var opcoes = '<option value="">— pessoa nova —</option>' + abertos.map(function(p){
+      return '<option value="' + p.id + '">' + esc(quem(p)) + (p.telefone ? ' · ' + esc(p.telefone) : '') + '</option>'; }).join("");
+    $("pItens").innerHTML = dados.itens.filter(function(i){ return !t || sem(i.nome).indexOf(t) > -1; }).map(function(i){
+      var n = Number(i.restam), sug = numero(precos[i.id]);
+      return '<div class="it' + (aberta === i.id ? ' aberto' : '') + '" data-id="' + esc(i.id) + '">' +
+        '<div class="it-lin"><span class="it-nome">' + esc(i.nome) + '</span>' +
+        '<span class="it-resta' + (n ? '' : ' zero') + '">' + (n ? 'restam ' + n : 'vendido') + '</span>' +
+        '<button class="p-btn ' + (n ? 'verde' : 'claro') + ' abrir">' + (n ? 'Vendido' : 'Corrigir') + '</button></div>' +
+        '<div class="it-form">' + (n ?
+          '<div class="g">' +
+            '<label>Qtd<input class="qtd" type="number" inputmode="numeric" min="1" max="' + n + '" value="1"></label>' +
+            '<label>Valor R$<input class="val" type="text" inputmode="decimal" value="' + (sug ? String(sug).replace(".", ",") : "") + '"></label>' +
+            '<label class="l2">Nome (opcional)<input class="nome" autocomplete="off" maxlength="160"></label>' +
+            '<label class="l2">Telefone (opcional)<input class="tel" type="tel" autocomplete="off" maxlength="40"></label>' +
+          '</div>' +
+          (abertos.length ? '<label class="junta">Ou juntar no pedido de alguém que já comprou<select class="ped">' + opcoes + '</select></label>' : '') +
+          '<div class="acoes"><label class="check" style="flex-direction:row;align-items:center;gap:8px;font-size:15px;color:var(--ink)">' +
+            '<input type="checkbox" class="pago" style="width:20px;height:20px;margin:0"> Já pagou</label>' +
+            '<button class="p-btn verde salvar">Salvar venda</button></div>' : '') +
+          '<div class="corrige"><label>Corrigir estoque<input class="est" type="number" inputmode="numeric" min="0" value="' + n + '"></label>' +
+            '<button class="p-btn claro ajustar">Salvar estoque</button><span>sem registrar venda</span></div>' +
+        '</div></div>';
+    }).join("") || '<p style="color:var(--ink-3)">Nenhuma peça com esse nome.</p>';
+  }
+  $("pBuscaPeca").addEventListener("input", function(){ if (dados) mostraPecas(); });
+  $("pItens").addEventListener("change", function(e){
+    // escolheu juntar com um pedido: nome/telefone já estão lá, apaga para não confundir
+    if (!e.target.classList.contains("ped")) return;
+    var box = e.target.closest(".it"), junta = !!e.target.value;
+    ["nome", "tel"].forEach(function(c){ var el = box.querySelector("." + c); el.disabled = junta; if (junta) el.value = ""; });
+    var p = junta && acha(Number(e.target.value)); box.querySelector(".pago").checked = !!(p && p.pago);
+  });
+  $("pItens").addEventListener("input", function(e){
+    if (!e.target.classList.contains("qtd")) return;
+    var box = e.target.closest(".it"), v = box.querySelector(".val");
+    if (v.dataset.mexeu) return;
+    var u = numero(precos[box.dataset.id]), q = parseInt(e.target.value, 10);
+    v.value = u && q > 0 ? String(u * q).replace(".", ",") : "";
+  });
+  $("pItens").addEventListener("keydown", function(e){ if (e.target.classList.contains("val")) e.target.dataset.mexeu = "1"; });
+  $("pItens").addEventListener("click", function(e){
+    var box = e.target.closest(".it"); if (!box) return;
+    var id = box.dataset.id, b = e.target.closest("button");
+    if (!b) return;
+    if (b.classList.contains("abrir")) {
+      aberta = aberta === id ? null : id;
+      [].forEach.call($("pItens").querySelectorAll(".it.aberto"), function(x){ if (x !== box) x.classList.remove("aberto"); });
+      box.classList.toggle("aberto", aberta === id);
+      return;
+    }
+    if (ocupado) return;
+    if (b.classList.contains("salvar")) {
+      var q = parseInt(box.querySelector(".qtd").value, 10), max = restam(id), v = numero(box.querySelector(".val").value);
+      if (!(q >= 1)) return toast("Confira a quantidade.", "erro");
+      if (q > max) return toast("Só tem " + max + " dessa peça.", "erro");
+      if (isNaN(v) || v < 0) return toast("Confira o valor.", "erro");
+      var pid = box.querySelector(".ped") ? Number(box.querySelector(".ped").value) || null : null, p = pid && acha(pid);
+      var nomeTodo = box.querySelector(".nome").value.trim().replace(/\s+/g, " "), corte = nomeTodo.indexOf(" ");
+      var corpo = p
+        ? {pedido_id: p.id, nome: p.nome, sobrenome: p.sobrenome, telefone: p.telefone, obs: p.obs, pago: box.querySelector(".pago").checked}
+        : {pedido_id: null, nome: corte > 0 ? nomeTodo.slice(0, corte) : nomeTodo, sobrenome: corte > 0 ? nomeTodo.slice(corte + 1) : "",
+           telefone: box.querySelector(".tel").value, obs: "", pago: box.querySelector(".pago").checked};
+      corpo.pecas = [{item_id: id, quantidade: q, valor: v}];
+      var nomePeca = nomeDe(id), txt = b.textContent; b.disabled = true; b.textContent = "Salvando…"; ocupado = true;
+      chama("pedido_salvar", corpo).then(function(d){
+        aberta = null; mostra(d);
+        toast("✓ " + nomePeca + " — vendido" + (p ? " (junto com " + quem(p) + ")" : nomeTodo ? " para " + nomeTodo : "") + ".", "ok");
+      }).catch(function(err){ b.disabled = false; b.textContent = txt; toast(err.message, "erro"); })
+        .then(function(){ ocupado = false; });
+    }
+    if (b.classList.contains("ajustar")) {
+      var n = parseInt(box.querySelector(".est").value, 10);
+      if (!(n >= 0)) return toast("Quantidade inválida.", "erro");
+      b.disabled = true; ocupado = true;
+      chama("estoque", {item_id: id, estoque: n}).then(function(d){ aberta = null; mostra(d); toast("Estoque corrigido.", "ok"); })
+        .catch(function(err){ b.disabled = false; toast(err.message, "erro"); })
+        .then(function(){ ocupado = false; });
+    }
+  });
+
+  // ── abas
+  var aba = "pecas";
+  function trocaAba(a){
+    aba = a;
+    [].forEach.call($("pAbas").children, function(b){ b.classList.toggle("on", b.dataset.aba === a); });
+    $("pPecas").hidden = a !== "pecas"; $("pLista").hidden = a !== "pedidos";
+  }
+  $("pAbas").addEventListener("click", function(e){ var b = e.target.closest("button"); if (b) trocaAba(b.dataset.aba); });
   function cartao(p){
     var tel = p.telefone ? (zap(p.telefone) ? '<a href="' + zap(p.telefone) + '" target="_blank" rel="noopener">' + esc(p.telefone) + '</a>' : esc(p.telefone)) : '';
     var quando = new Date(p.criado_em).toLocaleString("pt-BR", {day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"});
@@ -473,16 +588,6 @@ details.estoque summary{font-family:Fraunces,Georgia,serif; font-size:19px; curs
     if (e.target.closest(".editar")) abreForm(p);
   });
 
-  $("pEstoque").addEventListener("click", function(e){
-    if (!e.target.classList.contains("ajustar") || ocupado) return;
-    var box = e.target.closest(".est"), b = e.target, n = parseInt(box.querySelector("input").value, 10);
-    if (!(n >= 0)) { toast("Quantidade inválida.", "erro"); return; }
-    b.disabled = true; ocupado = true;
-    chama("estoque", {item_id: box.dataset.id, estoque: n}).then(function(d){ mostra(d); toast("Estoque corrigido.", "ok"); })
-      .catch(function(err){ b.disabled = false; toast(err.message, "erro"); })
-      .then(function(){ ocupado = false; });
-  });
-
   // ── formulário: nova venda ou editar pedido
   var editando = null, escolhidas = [];
   function abreForm(p){
@@ -499,10 +604,10 @@ details.estoque summary{font-family:Fraunces,Georgia,serif; font-size:19px; curs
     $("fSalvar").textContent = p ? "Salvar alterações" : "Salvar venda";
     $("fBusca").value = ""; $("fMsg").textContent = "";
     desenhaEscolhidas(); desenhaAchadas();
-    $("pLista").hidden = true; $("pForm").hidden = false; window.scrollTo(0, 0);
+    $("pAbas").hidden = $("pPecas").hidden = $("pLista").hidden = true; $("pForm").hidden = false; window.scrollTo(0, 0);
     if (!p) $("fNome").focus();
   }
-  function fechaForm(){ $("pForm").hidden = true; $("pLista").hidden = false; editando = null; escolhidas = []; }
+  function fechaForm(){ $("pForm").hidden = true; $("pAbas").hidden = false; trocaAba(aba); editando = null; escolhidas = []; }
 
   function restam(id){ var i = dados.itens.filter(function(x){ return x.id === id; })[0]; return i ? Number(i.restam) : 0; }
   function nomeDe(id){ var i = dados.itens.filter(function(x){ return x.id === id; })[0]; return i ? i.nome : id; }
